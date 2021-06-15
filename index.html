@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="/css/style.css">
+    </head>
+    <body>
+        <h1>
+            SQL Entity Relationship Diagram Generator
+        </h1>
+        <!--<button>Create New Table</button>-->
+
+        <div id="tableDiv">
+            <div id="Example" class="table"></div>
+        </div>
+
+
+        <hr><br/>
+        
+        <input id="tableName" type="text" placeholder="name" />
+        <button id="newTableBtn" onclick="newTable()">Create New Table</button>
+        <br/><br/><hr><br/>
+        <label>Select a table to add an attribute to: </label>
+        <select id="select">
+            <option value="">-- Please Choose a Table --</option>
+        </select>
+        <br/><br/>
+        <input id="attrName" type="text" placeholder="name"/>
+        <input id="attrType" type="text" placeholder="type"/>
+        <label>&nbsp&nbsp&nbsp Primary Key</label>
+        <input id="attrPK" type="checkbox" />
+        <button onclick="newAttribute()">Add Attribute</button>
+        <br/><br/><hr><br/>
+        <label>Select Table</label>
+        <select onclick="RefreshAttrSelect()" id="tableSelect1">
+            <option value="">-- Please Choose a Table --</option>
+        </select>  
+        <label>&nbsp&nbsp&nbsp Select Attribute</label>
+        <select id="attrSelect1">
+            <option value="">-- Please Choose an attribute --</option>
+        </select>
+        <br/><br/>&nbsp&nbsp&nbsp REFERENCES<br/><br/>
+        <label>Select Table</label>
+        <select onclick="RefreshAttrSelect()" id="tableSelect2">
+            <option value="">-- Please Choose a Table --</option>
+        </select>
+        <label>&nbsp&nbsp&nbsp Select Attribute</label>
+        <select id="attrSelect2">
+            <option value="">-- Please Choose an attribute --</option>
+        </select>
+        <br/><br/>
+        <button onclick="newForeignKey()">Add Foreign Key Restraint</button>
+        <br/><br/><hr>
+        <canvas id="canvas" width="500px" height="500px"></canvas>
+
+
+        <script src="/js/table.js"></script>
+        <script src="/js/field.js"></script>
+        <script src="/js/fk.js"></script>
+
+        <script>
+
+            const MAXTABLES = 4
+
+            window.onload = function (){
+                canvas = document.getElementById("canvas");
+                ctx = canvas.getContext("2d");
+                draw();
+                RefreshAllSelects();
+            }
+
+            draw = function()
+            {
+                ctx.fillStyle = "white";
+                ctx.fillRect(0,0,500,500);
+                ctx.strokeStyle = "black";
+                
+                for (var i = 0; i < tables.length; i++)
+                {
+                    fks = tables[i].GetAllFKs()
+                    for (var j = 0; j < fks.length; j++)
+                    {
+                        var x1 = 110 + (i % 2) * 280;
+                        var y1 = 100 + Math.floor(i / 2) * 150;
+                        var x2 = 110 + (fks[j].table2Index % 2) * 280;
+                        var y2 = 100 + Math.floor(fks[j].table2Index / 2) * 150;
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+
+                        flag = false;
+                        fks2 = fks[j].table2.GetAllFKs();
+                        for (var k = 0; k < fks2.length; k++)
+                        {
+                            if (fks2[k].table2Index == i)
+                            {
+                                flag = true;
+                                break;
+                            }
+                        }
+                        if (flag == false)
+                        {
+                            x2 = Math.floor((x1 + x2) / 2)
+                            y2 = Math.floor((y1 + y2) / 2)
+                            x3 = x1
+                            x4 = x1
+                            y3 = y1
+                            y4 = y1
+                            if (Math.floor(fks[j].table2Index / 2) == Math.floor(i/2))
+                            {
+                                y3 += 30;
+                                y4 -= 30;
+                            }
+                            else if (i % 2 == fks[j].table2Index % 2)
+                            {
+                                x3 += 30;
+                                x4 -= 30;
+                            }
+                            else{
+                                y3 -= 30;
+                                y4 += 30;
+                                x3 += 30;
+                                x4 -= 30;
+                            }
+                            
+                            ctx.moveTo(x2, y2);
+                            ctx.lineTo(x3, y3);
+                            ctx.moveTo(x2, y2);
+                            ctx.lineTo(x4, y4);
+                        }
+                        ctx.stroke();
+                    }
+                }
+                ctx.font = "30px Arial";
+                ctx.strokeStyle = "black";
+                if (tables.length >= 1)
+                {
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(10,50,200,100);
+                    ctx.strokeRect(10,50,200,100);
+                    ctx.fillStyle = "black";
+                    ctx.fillText(tables[0].GetName(), 20, 110);
+                }
+                if (tables.length >= 2)
+                {
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(290,50,200,100);
+                    ctx.strokeRect(290,50,200,100);
+                    ctx.fillStyle = "black";
+                    ctx.fillText(tables[1].GetName(), 300, 110);
+                }
+                if (tables.length >= 3)
+                {
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(10,200,200,100);
+                    ctx.strokeRect(10,200,200,100);
+                    ctx.fillStyle = "black";
+                    ctx.fillText(tables[2].GetName(), 20, 260);
+                }
+                if (tables.length >= 4)
+                {
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(290,200,200,100);
+                    ctx.strokeRect(290,200,200,100);
+                    ctx.fillStyle = "black";
+                    ctx.fillText(tables[3].GetName(), 300, 260);
+                }
+
+            }
+
+            newForeignKey = function()
+            {
+                var table1 = tables[tableSelect1.value];
+                var table2 = tables[tableSelect2.value];
+                var attr1 = table1.GetAllFields()[attrSelect1.value];
+                var attr2 = table2.GetAllFields()[attrSelect2.value];
+                var fk = new FK(table1,attr1,table2,attr2,tableSelect2.value);
+                table1.AddFk(fk);
+                tableIndex = tableSelect1.value;
+                RefreshTable();
+                draw()
+            }
+
+            newTable = function()
+            {
+                tableIndex = tables.length;
+                var name = document.getElementById("tableName");
+                var newTable = new Table(name.value);
+                var newTableRef = document.createElement("div");
+                newTableRef.classList.add("table");
+                tables.push(newTable);
+                tableRefs.push(newTableRef);
+                div.appendChild(newTableRef);
+                name.value = " ";
+
+                if (tables.length >= MAXTABLES)
+                {
+                    name.hidden = true;
+                    document.getElementById("newTableBtn").hidden = true;
+                }
+
+                RefreshTable()
+                RefreshAllSelects();
+                draw();
+            }
+
+            newAttribute = function()
+            {
+                tableIndex = select.value;
+                var name = document.getElementById("attrName");
+                var type = document.getElementById("attrType");
+                var pk = document.getElementById("attrPK");
+                tables[tableIndex].AddField(name.value, type.value, pk.checked);
+                name.value = "";
+                type.value = "";
+                pk.checked = false;
+                RefreshTable();
+                RefreshAttrSelect();
+                draw();
+            }
+
+            RefreshTable = function()
+            {
+                while (tableRefs[tableIndex].firstChild)
+                {
+                    tableRefs[tableIndex].removeChild(tableRefs[tableIndex].firstChild);
+                }
+                t = tables[tableIndex].GetTableSQL();
+                for (var i = 0; i < t.length; i++)
+                {
+                    p = document.createElement("p");
+                    p.innerHTML = t[i];
+                    tableRefs[tableIndex].appendChild(p);
+                };
+                draw();
+            }
+
+            RefreshTableSelect = function(select)
+            {
+                while (select.firstChild)
+                {
+                    select.removeChild(select.firstChild);
+                }
+                for (var i = 0; i < tables.length; i++)
+                {
+                    o = document.createElement("option");
+                    o.value = i;
+                    o.innerHTML = tables[i].GetName();
+                    select.appendChild(o);
+                };
+                draw();
+            }
+
+            RefreshAttrSelect = function()
+            {
+                while (attrSelect1.firstChild)
+                {
+                    attrSelect1.removeChild(attrSelect1.firstChild);
+                }
+                fields = tables[tableSelect1.value].GetAllFields();
+                for (var i = 0; i < fields.length; i++)
+                {
+                    o = document.createElement("option");
+                    o.value = i;
+                    o.innerHTML = fields[i].GetName();
+                    attrSelect1.appendChild(o);
+                };
+                
+                while (attrSelect2.firstChild)
+                {
+                    attrSelect2.removeChild(attrSelect2.firstChild);
+                }
+                fields = tables[tableSelect2.value].GetAllFields();
+                for (var i = 0; i < fields.length; i++)
+                {
+                    o = document.createElement("option");
+                    o.value = i;
+                    o.innerHTML = fields[i].GetName();
+                    attrSelect2.appendChild(o);
+                };
+            }
+
+            RefreshAllSelects = function()
+            {
+                RefreshTableSelect(tableSelect);
+                RefreshTableSelect(tableSelect1);
+                RefreshTableSelect(tableSelect2);
+                RefreshAttrSelect();
+            }
+
+
+            let tableRefs = [document.getElementById("Example")]
+            let tables = []
+            var tableIndex = 0;
+            var div = document.getElementById("tableDiv");
+            var tableSelect = document.getElementById("select");
+            var tableSelect1 = document.getElementById("tableSelect1");
+            var tableSelect2 = document.getElementById("tableSelect2");
+            var attrSelect1 = document.getElementById("attrSelect1");
+            var attrSelect2 = document.getElementById("attrSelect2");
+            RefreshTable();
+            RefreshAllSelects();
+
+        </script>
+
+    </body>
+</html>
